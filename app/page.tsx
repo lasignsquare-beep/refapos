@@ -11,11 +11,16 @@ function ReceiptModal({ tx, onClose }: { tx: SaleTransaction; onClose: () => voi
   const handlePrint = () => {
     const w = window.open('', '', 'width=400,height=600')
     if (!w) return
+
+    const logoSrc = tx.department === 'The Signsquare' ? '/sign.png' : '/light.png'
+    const absoluteLogoUrl = window.location.origin + logoSrc
+
     w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${tx.receiptNo}</title>
     <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;font-size:12px;padding:16px;width:320px}
     h1{font-size:16px;font-weight:bold;text-align:center;text-transform:uppercase;}.center{text-align:center}.divider{border-top:1px dashed #000;margin:8px 0}
-    table{width:100%}td{padding:2px 0}.right{text-align:right}.total{font-size:14px;font-weight:bold}</style></head>
-    <body><h1>${tx.department || 'REFABIT TECHNOLOGIES'}</h1><p class="center">Point of Sale Receipt</p>
+    table{width:100%}td{padding:2px 0}.right{text-align:right}.total{font-size:14px;font-weight:bold}
+    .logo-container{display:flex;justify-content:center;margin-bottom:8px;}.logo{max-height:60px;max-width:200px;object-fit:contain;}</style></head>
+    <body><div class="logo-container"><img class="logo" src="${absoluteLogoUrl}" alt="${tx.department || 'Logo'}" /></div><p class="center">Point of Sale Receipt</p>
     <div class="divider"></div>
     <p>Receipt: ${tx.receiptNo}</p><p>Date: ${new Date(tx.timestamp).toLocaleString('en-KE')}</p>
     <p>Cashier: ${tx.cashierName}</p>${tx.customer ? `<p>Customer: ${tx.customer}</p>` : ''}
@@ -26,19 +31,36 @@ function ReceiptModal({ tx, onClose }: { tx: SaleTransaction; onClose: () => voi
     ${tx.discount > 0 ? `<tr><td>Discount</td><td class="right">-${formatKES(tx.discount)}</td></tr>` : ''}
     <tr class="total"><td>TOTAL</td><td class="right">${formatKES(tx.total)}</td></tr>
     <tr><td>Payment</td><td class="right">${tx.paymentMode}</td></tr></table>
-    <div class="divider"></div><p class="center">Thank you for your business!</p></body></html>`)
-    w.document.close(); w.print()
+    <div class="divider"></div><p class="center">Thank you for your business!</p>
+    <script>
+      var img = document.querySelector('img.logo');
+      if (img) {
+        if (img.complete) { window.print(); }
+        else { img.onload = function() { window.print(); }; img.onerror = function() { window.print(); }; }
+      } else {
+        window.print();
+      }
+    </script>
+    </body></html>`)
+    w.document.close();
   }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-emerald-600 px-6 py-5 flex items-center gap-3">
-          <CheckCircle className="text-white" size={24} />
-          <div>
-            <p className="text-white font-bold text-lg">Sale Complete!</p>
-            <p className="text-emerald-100 text-sm">{tx.receiptNo}</p>
+        <div className="bg-emerald-600 px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="text-white" size={24} />
+            <div>
+              <p className="text-white font-bold text-lg">Sale Complete!</p>
+              <p className="text-emerald-100 text-sm">{tx.receiptNo}</p>
+            </div>
           </div>
+          <img 
+            src={tx.department === 'The Signsquare' ? '/sign.png' : '/light.png'} 
+            alt="Logo" 
+            className="h-10 w-auto object-contain bg-white/10 rounded-lg p-1"
+          />
         </div>
         <div className="px-6 py-5 space-y-3">
           <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
