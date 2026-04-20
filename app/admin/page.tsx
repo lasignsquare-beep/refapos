@@ -14,7 +14,7 @@ function StockModal({ product, onClose, onDone, cashier }: { product: Product; o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const n = parseInt(delta)
+    const n = parseFloat(delta)
     if (!n || n <= 0) return
     await adjustStock(product.id, product.stock, dir === 'add' ? n : -n, reason || 'Manual adjustment', cashier)
     onDone()
@@ -43,8 +43,8 @@ function StockModal({ product, onClose, onDone, cashier }: { product: Product; o
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Units</label>
-            <input type="number" min="1" value={delta} onChange={(e) => setDelta(e.target.value)}
-              placeholder="e.g. 10" required
+            <input type="number" step="any" min="0" value={delta} onChange={(e) => setDelta(e.target.value)}
+              placeholder="e.g. 10.5" required
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30" />
           </div>
           <div>

@@ -222,9 +222,10 @@ export function SalesForm({ onSubmit, editingEntry }: SalesFormProps) {
                 id="quantity"
                 type="number"
                 placeholder="0"
+                step="any"
                 value={formData.quantity}
                 onChange={(e) =>
-                  setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })
+                  setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })
                 }
                 required
                 min="0"

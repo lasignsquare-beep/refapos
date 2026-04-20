@@ -47,8 +47,8 @@ function ProductSheet({
     e.preventDefault()
     setError('')
     const price = parseFloat(form.price)
-    const stock = parseInt(form.stock)
-    const threshold = parseInt(form.lowStockThreshold)
+    const stock = parseFloat(form.stock)
+    const threshold = parseFloat(form.lowStockThreshold)
     if (!form.name.trim())  return setError('Product name is required.')
     if (isNaN(price) || price < 0) return setError('Enter a valid price.')
     if (isNaN(stock) || stock < 0) return setError('Enter a valid stock quantity.')
@@ -179,7 +179,7 @@ function ProductSheet({
             {/* Low stock threshold */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Low Stock Alert</label>
-              <input type="number" min="0" value={form.lowStockThreshold}
+              <input type="number" min="0" step="any" value={form.lowStockThreshold}
                 onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })} placeholder="5"
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
             </div>

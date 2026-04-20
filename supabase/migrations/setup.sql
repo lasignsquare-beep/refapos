@@ -20,9 +20,9 @@ CREATE TABLE pos_products (
   subcategory TEXT DEFAULT 'Other',
   sku TEXT,
   price NUMERIC NOT NULL,
-  stock INT NOT NULL DEFAULT 0,
+  stock NUMERIC NOT NULL DEFAULT 0,
   unit TEXT DEFAULT 'pcs',
-  low_stock_threshold INT NOT NULL DEFAULT 5,
+  low_stock_threshold NUMERIC NOT NULL DEFAULT 5,
   department TEXT DEFAULT 'Refabit Technologies',
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -51,7 +51,7 @@ CREATE TABLE pos_transaction_items (
   category TEXT NOT NULL,
   subcategory TEXT DEFAULT 'Other',
   price NUMERIC NOT NULL,
-  quantity INT NOT NULL,
+  quantity NUMERIC NOT NULL,
   unit TEXT DEFAULT 'pcs',
   subtotal NUMERIC NOT NULL,
   description TEXT
@@ -62,7 +62,7 @@ CREATE TABLE pos_stock_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   product_id UUID,
   product_name TEXT NOT NULL,
-  delta INT NOT NULL,
+  delta NUMERIC NOT NULL,
   reason TEXT,
   adjusted_by TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
