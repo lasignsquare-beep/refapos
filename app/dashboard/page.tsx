@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { calculateStats, calculateDailyRevenue, calculateTopProducts, calculatePaymentBreakdown, getTransactions } from '@/lib/store'
+import { calculateStats, calculateDailyRevenue, calculateTopProducts, calculatePaymentBreakdown, getTransactions, clearDebt } from '@/lib/store'
 import { formatKES, DEPARTMENTS } from '@/lib/pos-utils'
-import { TrendingUp, ShoppingBag, Calendar, DollarSign, Receipt } from 'lucide-react'
+import { TrendingUp, ShoppingBag, Calendar, DollarSign, Receipt, AlertCircle, CheckCircle2 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -47,10 +47,11 @@ export default function DashboardPage() {
   const [recent, setRecent]     = useState<SaleTransaction[]>([])
   const [allTxs, setAllTxs]     = useState<SaleTransaction[]>([])
   const [department, setDepartment] = useState<string>('All')
+  const [clearingDebt, setClearingDebt] = useState<string | null>(null)
 
-  useEffect(() => {
-    getTransactions().then(setAllTxs)
-  }, [])
+  const refreshTxs = () => getTransactions().then(setAllTxs)
+
+  useEffect(() => { refreshTxs() }, [])
 
   useEffect(() => {
     const filteredTxs = department === 'All' ? allTxs : allTxs.filter(t => t.department === department)
@@ -103,6 +104,18 @@ export default function DashboardPage() {
         <StatCard label="All Time" value={formatKES(stats.allTimeTotal)}
           sub={`${stats.count} total transactions`}
           icon={ShoppingBag} color="bg-emerald-500" />
+        {stats.pendingDebtCount > 0 && (
+          <div className="sm:col-span-2 xl:col-span-4 bg-red-50 border-2 border-red-400 rounded-2xl p-5 flex items-start gap-4 animate-pulse">
+            <div className="w-11 h-11 rounded-xl bg-red-600 flex items-center justify-center shrink-0">
+              <AlertCircle size={20} className="text-white" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-600 mb-0.5">Pending Debts</p>
+              <p className="text-2xl font-bold text-red-700">{formatKES(stats.pendingDebtTotal)}</p>
+              <p className="text-xs text-red-500 mt-0.5">{stats.pendingDebtCount} unpaid debt{stats.pendingDebtCount !== 1 ? 's' : ''} — not counted in revenue</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Revenue Chart */}
@@ -183,6 +196,100 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Pending Debts Panel */}
+      {allTxs.some(t => t.isDebt) && (
+        <div className="bg-card rounded-2xl border-2 border-red-300 overflow-hidden">
+          <div className="px-5 py-4 border-b border-red-200 flex items-center gap-2 bg-red-50">
+            <AlertCircle size={17} className="text-red-600" />
+            <h2 className="font-bold text-base text-red-700">Pending Debts</h2>
+            <span className="ml-auto text-xs font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+              {allTxs.filter(t => t.isDebt && (department === 'All' || t.department === department)).length} unpaid
+            </span>
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-red-100 bg-red-50/50">
+                  {['Receipt', 'Shop', 'Date', 'Customer', 'Cashier', 'Items', 'Debt Amount', 'Action'].map((h) => (
+                    <th key={h} className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-red-500 ${h === 'Debt Amount' ? 'text-right' : 'text-left'}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {allTxs
+                  .filter(t => t.isDebt && (department === 'All' || t.department === department))
+                  .map((tx) => (
+                    <tr key={tx.id} className="border-b border-red-100/60 hover:bg-red-50/40">
+                      <td className="px-4 py-3 font-mono text-xs text-red-400">{tx.receiptNo}</td>
+                      <td className="px-4 py-3 text-xs text-slate-600 font-medium">{tx.department === 'Refabit Technologies' ? 'Tech' : 'Signsquare'}</td>
+                      <td className="px-4 py-3 text-xs">{new Date(tx.timestamp).toLocaleString('en-KE', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</td>
+                      <td className="px-4 py-3 font-semibold text-red-700">{tx.customer || <span className="text-slate-400 italic">Unknown</span>}</td>
+                      <td className="px-4 py-3">{tx.cashierName}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}</td>
+                      <td className="px-4 py-3 text-right font-bold text-red-600 text-base">{formatKES(tx.total)}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          disabled={clearingDebt === tx.id}
+                          onClick={async () => {
+                            setClearingDebt(tx.id)
+                            const ok = await clearDebt(tx.id)
+                            if (ok) refreshTxs()
+                            setClearingDebt(null)
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
+                        >
+                          {clearingDebt === tx.id
+                            ? <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            : <CheckCircle2 size={13} />}
+                          Mark Paid
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-red-100">
+            {allTxs
+              .filter(t => t.isDebt && (department === 'All' || t.department === department))
+              .map((tx) => (
+                <div key={tx.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs text-red-400">{tx.receiptNo}</p>
+                    <p className="text-sm font-semibold text-red-700 truncate">{tx.customer || 'Unknown customer'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(tx.timestamp).toLocaleString('en-KE', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                      {' · '}{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <span className="font-bold text-base text-red-600">{formatKES(tx.total)}</span>
+                    <button
+                      disabled={clearingDebt === tx.id}
+                      onClick={async () => {
+                        setClearingDebt(tx.id)
+                        const ok = await clearDebt(tx.id)
+                        if (ok) refreshTxs()
+                        setClearingDebt(null)
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
+                    >
+                      {clearingDebt === tx.id
+                        ? <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        : <CheckCircle2 size={12} />}
+                      Paid
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Transactions */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden">

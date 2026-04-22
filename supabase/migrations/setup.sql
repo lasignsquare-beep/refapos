@@ -39,6 +39,7 @@ CREATE TABLE pos_transactions (
   customer TEXT,
   cashier_name TEXT NOT NULL,
   department TEXT DEFAULT 'Refabit Technologies',
+  debt_paid_at TIMESTAMPTZ DEFAULT NULL,  -- NULL = unpaid debt, timestamp = cleared
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

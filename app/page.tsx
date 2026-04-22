@@ -1,12 +1,57 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, Receipt, User, Tag, Banknote, Smartphone, CreditCard, Building2, CheckCircle, ChevronUp } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, Receipt, User, Tag, Banknote, Smartphone, CreditCard, Building2, CheckCircle, ChevronUp, AlertCircle, AlertTriangle } from 'lucide-react'
 import { getProducts, getSession, addTransaction, getNextReceiptNo, updateProduct } from '@/lib/store'
 import { formatKES, getCategoryConf, CATEGORIES_TECH, CATEGORIES_SIGN, DEPARTMENTS } from '@/lib/pos-utils'
 import type { Product, CartItem, SaleTransaction, PaymentMode, Session } from '@/lib/types'
 
-/* ── Receipt Modal ──────────────────────────────────────────────────────── */
+/* ── Debt Confirmation Modal ─────────────────────────────────────────────── */
+function DebtModal({ tx, onClose }: { tx: SaleTransaction; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-red-600 px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="text-white" size={24} />
+            <div>
+              <p className="text-white font-bold text-lg">Debt Recorded</p>
+              <p className="text-red-100 text-sm">{tx.receiptNo}</p>
+            </div>
+          </div>
+          <img
+            src={tx.department === 'The Signsquare' ? '/sign.png' : '/light.png'}
+            alt="Logo"
+            className="h-10 w-auto object-contain bg-white/10 rounded-lg p-1"
+          />
+        </div>
+        <div className="px-6 py-5 space-y-3">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2 text-sm">
+            <p className="text-red-700 font-semibold flex items-center gap-2">
+              <AlertTriangle size={15} /> This sale has NOT been counted as revenue.
+            </p>
+            <p className="text-red-600 text-xs">Stock has not been deducted. Revenue will be recorded only when the debt is cleared from the Dashboard.</p>
+            {tx.customer && (
+              <p className="text-slate-600 text-xs mt-2">Customer: <strong>{tx.customer}</strong></p>
+            )}
+            <div className="border-t border-red-200 pt-2 mt-2">
+              <div className="flex justify-between font-bold text-base">
+                <span className="text-red-700">Debt Amount</span>
+                <span className="text-red-700">{formatKES(tx.total)}</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl text-sm">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 function ReceiptModal({ tx, onClose }: { tx: SaleTransaction; onClose: () => void }) {
   const handlePrint = () => {
     const w = window.open('', '', 'width=400,height=600')
@@ -129,6 +174,7 @@ function CartPanel({
   onCharge: () => void
   payModes: { mode: PaymentMode; icon: React.ReactNode; label: string }[]
 }) {
+  const isDebtMode = payMode === 'Debt'
   return (
     <>
       {/* Cart header */}
@@ -224,11 +270,15 @@ function CartPanel({
         </div>
 
         {/* Payment mode */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
           {payModes.map(({ mode, icon, label }) => (
             <button key={mode} onClick={() => setPayMode(mode)}
               className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                payMode === mode
+                mode === 'Debt'
+                  ? payMode === 'Debt'
+                    ? 'bg-red-600 text-white border-red-600 shadow-[0_0_0_3px_rgba(220,38,38,0.25)] animate-pulse'
+                    : 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100'
+                  : payMode === mode
                   ? 'bg-slate-900 text-white border-slate-900'
                   : 'bg-background border-border text-muted-foreground hover:border-slate-300'
               }`}>
@@ -236,6 +286,14 @@ function CartPanel({
             </button>
           ))}
         </div>
+
+        {/* Debt warning */}
+        {isDebtMode && (
+          <div className="flex items-start gap-2 rounded-xl bg-red-50 border-2 border-red-400 px-3 py-2.5 text-xs text-red-700 font-medium animate-pulse">
+            <AlertCircle size={14} className="mt-0.5 shrink-0 text-red-600" />
+            <span><strong>DEBT MODE:</strong> This will NOT count as a sale or deduct stock until the debt is cleared.</span>
+          </div>
+        )}
 
         {/* Error banner */}
         {saleError && (
@@ -249,12 +307,16 @@ function CartPanel({
         <button
           onClick={onCharge}
           disabled={cart.length === 0 || processing}
-          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base touch-manipulation"
+          className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base touch-manipulation ${
+            isDebtMode
+              ? 'bg-red-700 hover:bg-red-800 active:bg-red-900'
+              : 'bg-red-600 hover:bg-red-700 active:bg-red-800'
+          }`}
         >
           {processing
             ? <span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            : <Receipt size={18} />}
-          {processing ? 'Processing…' : `Charge ${formatKES(total)}`}
+            : isDebtMode ? <AlertCircle size={18} /> : <Receipt size={18} />}
+          {processing ? 'Processing…' : isDebtMode ? `Record Debt ${formatKES(total)}` : `Charge ${formatKES(total)}`}
         </button>
       </div>
     </>
@@ -276,6 +338,7 @@ export default function POSPage() {
   const [processing, setProcessing] = useState(false)
   const [cartOpen, setCartOpen]     = useState(false)  // mobile cart sheet
   const [saleError, setSaleError]   = useState<string | null>(null)
+  const [debtReceipt, setDebtReceipt] = useState<SaleTransaction | null>(null)
 
   useEffect(() => {
     setSession(getSession())
@@ -356,8 +419,12 @@ export default function POSPage() {
       setDiscount(0)
       setCustomer('')
       setSaleError(null)
-      setReceipt(tx)
       setCartOpen(false)
+      if (payMode === 'Debt') {
+        setDebtReceipt(tx)
+      } else {
+        setReceipt(tx)
+      }
     } catch (e: any) {
       console.error(e)
       const msg = e?.message || 'Unknown error'
@@ -373,6 +440,7 @@ export default function POSPage() {
     { mode: 'M-Pesa', icon: <Smartphone size={15} />, label: 'M-Pesa' },
     { mode: 'DTB',    icon: <CreditCard size={15} />, label: 'DTB' },
     { mode: 'I&M',    icon: <Building2 size={15} />,  label: 'I&M' },
+    { mode: 'Debt',   icon: <AlertCircle size={15} />, label: 'Debt' },
   ]
 
   const cartPanelProps = {
@@ -384,6 +452,7 @@ export default function POSPage() {
   return (
     <>
       {receipt && <ReceiptModal tx={receipt} onClose={() => setReceipt(null)} />}
+      {debtReceipt && <DebtModal tx={debtReceipt} onClose={() => setDebtReceipt(null)} />}
 
       {/* ── Mobile cart sheet overlay ── */}
       {cartOpen && (
@@ -415,33 +484,36 @@ export default function POSPage() {
             )}
           </div>
 
-          {/* Department Switcher */}
-          <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-fit overflow-x-auto no-scrollbar">
-            {DEPARTMENTS.map(dept => (
-              <button key={dept} onClick={() => { setDepartment(dept); setCategory('All') }}
-                className={`flex-1 sm:flex-none flex-shrink-0 px-3 lg:px-4 py-2 rounded-lg text-xs lg:text-sm font-semibold transition-all ${
-                  department === dept ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}>
-                {dept}
-              </button>
-            ))}
-          </div>
+          {/* Department Switcher + Category tabs — always visible, sticky */}
+          <div className="sticky top-0 z-10 bg-background pb-2 pt-1 space-y-2">
+            {/* Department Switcher */}
+            <div className="flex bg-slate-100 p-1 rounded-xl w-full overflow-x-auto no-scrollbar">
+              {DEPARTMENTS.map(dept => (
+                <button key={dept} onClick={() => { setDepartment(dept); setCategory('All') }}
+                  className={`flex-1 sm:flex-none flex-shrink-0 px-3 lg:px-4 py-2 rounded-lg text-xs lg:text-sm font-semibold transition-all ${
+                    department === dept ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}>
+                  {dept}
+                </button>
+              ))}
+            </div>
 
-          {/* Category tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-3 px-3 lg:mx-0 lg:px-0">
-            {['All', ...(department === 'Refabit Technologies' ? CATEGORIES_TECH : CATEGORIES_SIGN)].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`px-3 py-1.5 flex-shrink-0 rounded-lg text-xs font-semibold whitespace-nowrap border transition-all ${
-                  category === cat
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-card text-muted-foreground border-border hover:border-slate-300'
-                }`}
-              >
-                {cat !== 'All' ? `${getCategoryConf(cat).emoji} ` : ''}{cat}
-              </button>
-            ))}
+            {/* Category tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-3 px-3 lg:mx-0 lg:px-0">
+              {['All', ...(department === 'Refabit Technologies' ? CATEGORIES_TECH : CATEGORIES_SIGN)].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  className={`px-3 py-1.5 flex-shrink-0 rounded-lg text-xs font-semibold whitespace-nowrap border transition-all ${
+                    category === cat
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-card text-muted-foreground border-border hover:border-slate-300'
+                  }`}
+                >
+                  {cat !== 'All' ? `${getCategoryConf(cat).emoji} ` : ''}{cat}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Product Grid */}

@@ -205,6 +205,8 @@ export async function getTransactions(): Promise<SaleTransaction[]> {
        cashierName: t.cashier_name,
        timestamp: t.created_at,
        department: t.department || 'Refabit Technologies',
+       isDebt: t.payment_mode === 'Debt' && !t.debt_paid_at,
+       debtPaidAt: t.debt_paid_at ?? undefined,
        items: t.items.map((i: any) => ({
            productId: i.product_id,
            name: i.name,
@@ -251,16 +253,43 @@ export async function addTransaction(txData: Omit<SaleTransaction, 'id' | 'times
     const { error: itemsError } = await supabase.from('pos_transaction_items').insert(itemsToInsert);
     if (itemsError) { console.error('Error adding transaction items:', itemsError); throw itemsError; }
     
-    // 3. Deduct stock for each item (in a robust app, use RPC/stored procedures for this)
-    // Quick approach for now: iterate and update
-    for (const item of txData.items) {
-        // We get current stock, but robust apps do this atomically in PG
-        const { data: pRow } = await supabase.from('pos_products').select('stock').eq('id', item.productId).single();
-        if (pRow) {
-            const newStock = Math.max(0, pRow.stock - item.quantity);
-            await supabase.from('pos_products').update({stock: newStock}).eq('id', item.productId);
+    // 3. Deduct stock only for non-Debt sales (debt = goods not yet delivered)
+    if (txData.paymentMode !== 'Debt') {
+        for (const item of txData.items) {
+            const { data: pRow } = await supabase.from('pos_products').select('stock').eq('id', item.productId).single();
+            if (pRow) {
+                const newStock = Math.max(0, pRow.stock - item.quantity);
+                await supabase.from('pos_products').update({stock: newStock}).eq('id', item.productId);
+            }
         }
     }
+}
+
+// ── Debt Management ──────────────────────────────────────────────────────────
+export async function clearDebt(txId: string): Promise<boolean> {
+    // Mark as paid and now deduct stock
+    const { data: tx, error: fetchErr } = await supabase
+        .from('pos_transactions')
+        .select('*, items:pos_transaction_items(*)')
+        .eq('id', txId)
+        .single()
+    if (fetchErr || !tx) { console.error('clearDebt: tx not found', fetchErr); return false }
+
+    const { error: updateErr } = await supabase
+        .from('pos_transactions')
+        .update({ debt_paid_at: new Date().toISOString() })
+        .eq('id', txId)
+    if (updateErr) { console.error('clearDebt: update failed', updateErr); return false }
+
+    // Now deduct stock that was held back
+    for (const item of tx.items) {
+        const { data: pRow } = await supabase.from('pos_products').select('stock').eq('id', item.product_id).single();
+        if (pRow) {
+            const newStock = Math.max(0, pRow.stock - item.quantity);
+            await supabase.from('pos_products').update({ stock: newStock }).eq('id', item.product_id);
+        }
+    }
+    return true
 }
 
 export async function deleteTransaction(id: string) {
@@ -283,19 +312,25 @@ export function calculateStats(txs: SaleTransaction[]) {
   const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - weekStart.getDay()); weekStart.setHours(0,0,0,0)
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const todayTxs  = txs.filter((t) => t.timestamp.startsWith(today))
-  const weekTxs   = txs.filter((t) => new Date(t.timestamp) >= weekStart)
-  const monthTxs  = txs.filter((t) => new Date(t.timestamp) >= monthStart)
+  // Only count paid transactions (exclude unpaid debts)
+  const paidTxs   = txs.filter((t) => !t.isDebt)
+  const todayTxs  = paidTxs.filter((t) => t.timestamp.startsWith(today))
+  const weekTxs   = paidTxs.filter((t) => new Date(t.timestamp) >= weekStart)
+  const monthTxs  = paidTxs.filter((t) => new Date(t.timestamp) >= monthStart)
+
+  const pendingDebts = txs.filter((t) => t.isDebt)
 
   return {
-    todayTotal:  todayTxs.reduce((s, t) => s + t.total, 0),
-    weekTotal:   weekTxs.reduce((s, t) => s + t.total, 0),
-    monthTotal:  monthTxs.reduce((s, t) => s + t.total, 0),
-    allTimeTotal:txs.reduce((s, t) => s + t.total, 0),
-    count:       txs.length,
-    todayCount:  todayTxs.length,
-    weekCount:   weekTxs.length,
-    monthCount:  monthTxs.length,
+    todayTotal:   todayTxs.reduce((s, t) => s + t.total, 0),
+    weekTotal:    weekTxs.reduce((s, t) => s + t.total, 0),
+    monthTotal:   monthTxs.reduce((s, t) => s + t.total, 0),
+    allTimeTotal: paidTxs.reduce((s, t) => s + t.total, 0),
+    count:        paidTxs.length,
+    todayCount:   todayTxs.length,
+    weekCount:    weekTxs.length,
+    monthCount:   monthTxs.length,
+    pendingDebtTotal: pendingDebts.reduce((s, t) => s + t.total, 0),
+    pendingDebtCount: pendingDebts.length,
   }
 }
 
@@ -323,8 +358,9 @@ export function calculateTopProducts(txs: SaleTransaction[], limit = 6): { name:
 }
 
 export function calculatePaymentBreakdown(txs: SaleTransaction[]): { name: PaymentMode; value: number }[] {
+  // Only include paid transactions in breakdown
   const map: Record<string, number> = { Cash: 0, 'M-Pesa': 0, DTB: 0, 'I&M': 0 }
-  txs.forEach((t) => { map[t.paymentMode] = (map[t.paymentMode] ?? 0) + Number(t.total) })
+  txs.filter(t => !t.isDebt).forEach((t) => { map[t.paymentMode] = (map[t.paymentMode] ?? 0) + Number(t.total) })
   return (Object.entries(map) as [PaymentMode, number][]).map(([name, value]) => ({ name, value }))
 }
 

@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'cashier'
-export type PaymentMode = 'Cash' | 'M-Pesa' | 'DTB' | 'I&M'
+export type PaymentMode = 'Cash' | 'M-Pesa' | 'DTB' | 'I&M' | 'Debt'
 
 export interface User {
   id: string
@@ -57,6 +57,8 @@ export interface SaleTransaction {
   timestamp: string
   receiptNo: string
   department: string
+  isDebt?: boolean      // true when paymentMode is 'Debt' and not yet paid
+  debtPaidAt?: string   // ISO timestamp when debt was cleared
 }
 
 export interface StockLog {
