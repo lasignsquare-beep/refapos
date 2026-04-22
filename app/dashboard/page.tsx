@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import type { SaleTransaction } from '@/lib/types'
 
-const PIE_COLORS = ['#16a34a', '#2563eb', '#7c3aed']
+const PIE_COLORS = ['#16a34a', '#2563eb', '#7c3aed', '#ea7600']
 
 function StatCard({ label, value, sub, icon: Icon, color }: {
   label: string; value: string; sub?: string; icon: React.ElementType; color: string
@@ -213,8 +213,10 @@ export default function DashboardPage() {
                   <td className="px-4 py-3 text-muted-foreground">{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      tx.paymentMode === 'Cash' ? 'bg-emerald-100 text-emerald-700' :
-                      tx.paymentMode === 'M-Pesa' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                      tx.paymentMode === 'Cash'   ? 'bg-emerald-100 text-emerald-700' :
+                      tx.paymentMode === 'M-Pesa' ? 'bg-blue-100 text-blue-700' :
+                      tx.paymentMode === 'I&M'    ? 'bg-orange-100 text-orange-700' :
+                                                     'bg-purple-100 text-purple-700'
                     }`}>{tx.paymentMode}</span>
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-primary">{formatKES(tx.total)}</td>
@@ -241,8 +243,10 @@ export default function DashboardPage() {
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className="font-bold text-sm text-primary">{formatKES(tx.total)}</span>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  tx.paymentMode === 'Cash' ? 'bg-emerald-100 text-emerald-700' :
-                  tx.paymentMode === 'M-Pesa' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                  tx.paymentMode === 'Cash'   ? 'bg-emerald-100 text-emerald-700' :
+                  tx.paymentMode === 'M-Pesa' ? 'bg-blue-100 text-blue-700' :
+                  tx.paymentMode === 'I&M'    ? 'bg-orange-100 text-orange-700' :
+                                               'bg-purple-100 text-purple-700'
                 }`}>{tx.paymentMode}</span>
               </div>
             </div>

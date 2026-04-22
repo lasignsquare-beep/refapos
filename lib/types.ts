@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'cashier'
-export type PaymentMode = 'Cash' | 'M-Pesa' | 'DTB'
+export type PaymentMode = 'Cash' | 'M-Pesa' | 'DTB' | 'I&M'
 
 export interface User {
   id: string

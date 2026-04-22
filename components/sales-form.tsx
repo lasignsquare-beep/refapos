@@ -182,6 +182,7 @@ export function SalesForm({ onSubmit, editingEntry }: SalesFormProps) {
                   <SelectItem value="Cash">Cash</SelectItem>
                   <SelectItem value="M-Pesa">M-Pesa</SelectItem>
                   <SelectItem value="DTB">DTB</SelectItem>
+                  <SelectItem value="I&M">I&amp;M</SelectItem>
                 </SelectContent>
               </Select>
             </div>

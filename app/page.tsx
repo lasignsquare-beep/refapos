@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, Receipt, User, Tag, Banknote, Smartphone, CreditCard, CheckCircle, ChevronUp } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, Receipt, User, Tag, Banknote, Smartphone, CreditCard, Building2, CheckCircle, ChevronUp } from 'lucide-react'
 import { getProducts, getSession, addTransaction, getNextReceiptNo, updateProduct } from '@/lib/store'
 import { formatKES, getCategoryConf, CATEGORIES_TECH, CATEGORIES_SIGN, DEPARTMENTS } from '@/lib/pos-utils'
 import type { Product, CartItem, SaleTransaction, PaymentMode, Session } from '@/lib/types'
@@ -224,7 +224,7 @@ function CartPanel({
         </div>
 
         {/* Payment mode */}
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {payModes.map(({ mode, icon, label }) => (
             <button key={mode} onClick={() => setPayMode(mode)}
               className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
@@ -372,6 +372,7 @@ export default function POSPage() {
     { mode: 'Cash',   icon: <Banknote size={15} />,   label: 'Cash' },
     { mode: 'M-Pesa', icon: <Smartphone size={15} />, label: 'M-Pesa' },
     { mode: 'DTB',    icon: <CreditCard size={15} />, label: 'DTB' },
+    { mode: 'I&M',    icon: <Building2 size={15} />,  label: 'I&M' },
   ]
 
   const cartPanelProps = {

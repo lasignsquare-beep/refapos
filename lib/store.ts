@@ -323,7 +323,7 @@ export function calculateTopProducts(txs: SaleTransaction[], limit = 6): { name:
 }
 
 export function calculatePaymentBreakdown(txs: SaleTransaction[]): { name: PaymentMode; value: number }[] {
-  const map: Record<string, number> = { Cash: 0, 'M-Pesa': 0, DTB: 0 }
+  const map: Record<string, number> = { Cash: 0, 'M-Pesa': 0, DTB: 0, 'I&M': 0 }
   txs.forEach((t) => { map[t.paymentMode] = (map[t.paymentMode] ?? 0) + Number(t.total) })
   return (Object.entries(map) as [PaymentMode, number][]).map(([name, value]) => ({ name, value }))
 }
