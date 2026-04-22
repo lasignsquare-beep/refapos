@@ -105,7 +105,7 @@ function ReceiptModal({ tx, onClose }: { tx: SaleTransaction; onClose: () => voi
 
 /* ── Cart Panel ─────────────────────────────────────────────────────────── */
 function CartPanel({
-  cart, session, subtotal, total, discount, customer, payMode, processing,
+  cart, session, subtotal, total, discount, customer, payMode, processing, saleError,
   setCart, setDiscount, setCustomer, setPayMode, changeQty, setQty, removeItem,
   onCharge,
   payModes,
@@ -118,6 +118,7 @@ function CartPanel({
   customer: string
   payMode: PaymentMode
   processing: boolean
+  saleError: string | null
   setCart: (c: CartItem[]) => void
   setDiscount: (v: number) => void
   setCustomer: (v: string) => void
@@ -161,27 +162,27 @@ function CartPanel({
               {item.description && <p className="text-[10px] text-muted-foreground truncate">{item.description}</p>}
               <p className="text-xs text-primary font-medium">{formatKES(item.subtotal)}</p>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               <button onClick={() => changeQty(item.productId, -1)}
-                className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center shrink-0">
-                <Minus size={11} />
+                className="w-9 h-9 rounded-lg bg-slate-100 active:bg-slate-300 hover:bg-slate-200 flex items-center justify-center shrink-0 touch-manipulation">
+                <Minus size={13} />
               </button>
               <div className="flex items-center gap-0.5">
-                <input type="number" step="any" min="0" value={item.quantity}
+                <input type="number" step="any" min="0" inputMode="decimal" value={item.quantity}
                   onChange={(e) => {
                     const v = parseFloat(e.target.value)
                     if (!isNaN(v)) setQty(item.productId, v)
                   }}
-                  className="text-xs font-bold w-12 text-center bg-transparent border border-slate-200 rounded-md focus:outline-none focus:border-red-400 py-0.5 no-spinners" />
+                  className="text-xs font-bold w-14 text-center bg-transparent border border-slate-200 rounded-md focus:outline-none focus:border-red-400 py-1 no-spinners" />
                 {item.unit === 'm' && <span className="text-[10px] text-muted-foreground">m</span>}
               </div>
               <button onClick={() => changeQty(item.productId, 1)}
-                className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center shrink-0">
-                <Plus size={11} />
+                className="w-9 h-9 rounded-lg bg-slate-100 active:bg-slate-300 hover:bg-slate-200 flex items-center justify-center shrink-0 touch-manipulation">
+                <Plus size={13} />
               </button>
               <button onClick={() => removeItem(item.productId)}
-                className="w-6 h-6 rounded-lg text-red-400 hover:bg-red-50 flex items-center justify-center ml-0.5">
-                <Trash2 size={11} />
+                className="w-9 h-9 rounded-lg text-red-400 hover:bg-red-50 active:bg-red-100 flex items-center justify-center ml-0.5 touch-manipulation">
+                <Trash2 size={13} />
               </button>
             </div>
           </div>
@@ -193,18 +194,18 @@ function CartPanel({
         {/* Customer */}
         <div className="relative">
           <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input type="text" placeholder="Customer name (optional)" value={customer}
+          <input type="text" inputMode="text" placeholder="Customer name (optional)" value={customer}
             onChange={(e) => setCustomer(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
         </div>
 
         {/* Discount */}
         <div className="relative">
           <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input type="number" placeholder="Discount (KES)" value={discount || ''}
+          <input type="number" inputMode="numeric" placeholder="Discount (KES)" value={discount || ''}
             onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
             min="0" max={subtotal}
-            className="w-full pl-8 pr-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
         </div>
 
         {/* Totals */}
@@ -236,15 +237,23 @@ function CartPanel({
           ))}
         </div>
 
+        {/* Error banner */}
+        {saleError && (
+          <div className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2.5 text-xs text-red-700 font-medium">
+            <span className="mt-0.5 shrink-0">⚠️</span>
+            <span>{saleError}</span>
+          </div>
+        )}
+
         {/* Charge button */}
         <button
           onClick={onCharge}
           disabled={cart.length === 0 || processing}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm"
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base touch-manipulation"
         >
           {processing
-            ? <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            : <Receipt size={16} />}
+            ? <span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            : <Receipt size={18} />}
           {processing ? 'Processing…' : `Charge ${formatKES(total)}`}
         </button>
       </div>
@@ -266,6 +275,7 @@ export default function POSPage() {
   const [receipt, setReceipt]       = useState<SaleTransaction | null>(null)
   const [processing, setProcessing] = useState(false)
   const [cartOpen, setCartOpen]     = useState(false)  // mobile cart sheet
+  const [saleError, setSaleError]   = useState<string | null>(null)
 
   useEffect(() => {
     setSession(getSession())
@@ -345,11 +355,14 @@ export default function POSPage() {
       setCart([])
       setDiscount(0)
       setCustomer('')
+      setSaleError(null)
       setReceipt(tx)
       setCartOpen(false)
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
-      alert("Failed to process sale. Check console.")
+      const msg = e?.message || 'Unknown error'
+      setSaleError(`Failed to save sale: ${msg}. Check your connection and try again.`)
+      setTimeout(() => setSaleError(null), 8000)
     } finally {
       setProcessing(false)
     }
@@ -362,7 +375,7 @@ export default function POSPage() {
   ]
 
   const cartPanelProps = {
-    cart, session, subtotal, total, discount, customer, payMode, processing,
+    cart, session, subtotal, total, discount, customer, payMode, processing, saleError,
     setCart, setDiscount, setCustomer, setPayMode,
     changeQty, setQty, removeItem, onCharge: processSale, payModes,
   }
@@ -375,13 +388,14 @@ export default function POSPage() {
       {cartOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          style={{ bottom: 'calc(60px + env(safe-area-inset-bottom))' }}
           onClick={() => setCartOpen(false)}
         />
       )}
 
       <div className="flex flex-col lg:flex-row lg:h-full lg:overflow-hidden overflow-y-auto relative">
         {/* ── Left: Product Grid ── */}
-        <div className="flex-1 flex flex-col min-w-0 p-3 lg:p-5 gap-3 lg:gap-4 lg:overflow-y-auto pb-24 md:pb-3 lg:pb-5">
+        <div className="flex-1 flex flex-col min-w-0 p-3 lg:p-5 gap-3 lg:gap-4 lg:overflow-y-auto pb-36 md:pb-3 lg:pb-5">
           {/* Search */}
           <div className="flex gap-3">
             <div className="relative flex-1">
@@ -430,7 +444,7 @@ export default function POSPage() {
           </div>
 
           {/* Product Grid */}
-          <div className="flex-1 overflow-y-auto">
+          <div>
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
                 <ShoppingCart size={36} strokeWidth={1.2} className="mb-3 opacity-40" />
@@ -491,11 +505,12 @@ export default function POSPage() {
         {/* Floating cart FAB */}
         <button
           onClick={() => setCartOpen(true)}
-          className={`lg:hidden fixed bottom-[68px] md:bottom-6 right-4 z-30 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-lg font-semibold text-sm transition-all ${
+          className={`lg:hidden fixed right-4 z-30 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-lg font-semibold text-sm transition-all ${
             cart.length > 0
               ? 'bg-red-600 text-white'
               : 'bg-slate-800 text-white/70'
           }`}
+          style={{ bottom: 'calc(68px + env(safe-area-inset-bottom))' }}
         >
           <ShoppingCart size={18} />
           <span>{cart.length > 0 ? `${cart.length} item${cart.length !== 1 ? 's' : ''} · ${formatKES(total)}` : 'Cart'}</span>
@@ -504,10 +519,13 @@ export default function POSPage() {
 
         {/* Slide-up cart sheet on mobile/tablet */}
         <div
-          className={`lg:hidden fixed inset-x-0 bottom-0 z-40 bg-card border-t border-border rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
+          className={`lg:hidden fixed inset-x-0 z-40 bg-card border-t border-border rounded-t-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
             cartOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
-          style={{ maxHeight: '85vh' }}
+          style={{
+            bottom: 'calc(60px + env(safe-area-inset-bottom))',
+            maxHeight: 'calc(85dvh - 60px - env(safe-area-inset-bottom))',
+          }}
         >
           {/* Drag handle */}
           <div className="flex justify-center py-2 shrink-0" onClick={() => setCartOpen(false)}>

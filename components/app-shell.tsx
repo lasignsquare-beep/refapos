@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <NavSidebar session={session} />
 
       {/* Main content — add bottom padding on mobile for the bottom nav */}
-      <main className="flex-1 overflow-auto bg-background pb-[60px] md:pb-0">
+      <main className="flex-1 overflow-auto bg-background main-content">
         {children}
       </main>
 
