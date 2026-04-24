@@ -16,6 +16,7 @@ export const CATEGORY_TREE = {
     'Storage': ['SSDs', 'HDDs', 'Flash Drives', 'Other'],
     'Software': ['OS Installations', 'Antivirus', 'Office Packages', 'Custom Systems', 'Other'],
     'Services': ['Repairs', 'Installation', 'Networking Setup', 'CCTV Installation', 'Other'],
+    'Furniture': ['Office Chair', 'Office Desk', 'Other'],
     'Other': ['Other']
   },
   'The Signsquare': {
@@ -42,6 +43,7 @@ export const categoryConfig: Record<
   Storage:            { color: '#f59e0b', bg: 'bg-amber-100',   text: 'text-amber-700',   border: 'border-amber-200',   emoji: '💽' },
   Software:           { color: '#10b981', bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', emoji: '📀' },
   Services:           { color: '#d946ef', bg: 'bg-fuchsia-100', text: 'text-fuchsia-700', border: 'border-fuchsia-200', emoji: '🔧' },
+  Furniture:          { color: '#8b4513', bg: 'bg-orange-100',  text: 'text-orange-700',  border: 'border-orange-200',  emoji: '🪑' },
   
   // Graphics
   'Printing Materials':{ color: '#8b5cf6', bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200',  emoji: '🖨️' },
