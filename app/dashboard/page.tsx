@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { calculateStats, calculateDailyRevenue, calculateTopProducts, calculatePaymentBreakdown, getTransactions, clearDebt } from '@/lib/store'
+import { calculateStats, calculateDailyRevenue, calculateTopProducts, calculatePaymentBreakdown, getTransactions, clearDebt, unmarkDebt } from '@/lib/store'
 import { formatKES, DEPARTMENTS } from '@/lib/pos-utils'
-import { TrendingUp, ShoppingBag, Calendar, DollarSign, Receipt, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { TrendingUp, ShoppingBag, Calendar, DollarSign, Receipt, AlertCircle, CheckCircle2, Undo2 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const [allTxs, setAllTxs]     = useState<SaleTransaction[]>([])
   const [department, setDepartment] = useState<string>('All')
   const [clearingDebt, setClearingDebt] = useState<string | null>(null)
+  const [unmarkingDebt, setUnmarkingDebt] = useState<string | null>(null)
 
   const refreshTxs = () => getTransactions().then(setAllTxs)
 
@@ -231,21 +232,40 @@ export default function DashboardPage() {
                       <td className="px-4 py-3 text-muted-foreground">{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}</td>
                       <td className="px-4 py-3 text-right font-bold text-red-600 text-base">{formatKES(tx.total)}</td>
                       <td className="px-4 py-3">
-                        <button
-                          disabled={clearingDebt === tx.id}
-                          onClick={async () => {
-                            setClearingDebt(tx.id)
-                            const ok = await clearDebt(tx.id)
-                            if (ok) refreshTxs()
-                            setClearingDebt(null)
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
-                        >
-                          {clearingDebt === tx.id
-                            ? <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            : <CheckCircle2 size={13} />}
-                          Mark Paid
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            disabled={clearingDebt === tx.id || unmarkingDebt === tx.id}
+                            onClick={async () => {
+                              setClearingDebt(tx.id)
+                              const ok = await clearDebt(tx.id)
+                              if (ok) refreshTxs()
+                              setClearingDebt(null)
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
+                          >
+                            {clearingDebt === tx.id
+                              ? <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              : <CheckCircle2 size={13} />}
+                            Mark Paid
+                          </button>
+                          <button
+                            disabled={clearingDebt === tx.id || unmarkingDebt === tx.id}
+                            onClick={async () => {
+                              if (!confirm('Remove this debt? (Items returned — transaction will be deleted)')) return
+                              setUnmarkingDebt(tx.id)
+                              const ok = await unmarkDebt(tx.id)
+                              if (ok) refreshTxs()
+                              setUnmarkingDebt(null)
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold disabled:opacity-50"
+                            title="Items returned — remove this debt"
+                          >
+                            {unmarkingDebt === tx.id
+                              ? <span className="h-3 w-3 border-2 border-slate-400/30 border-t-slate-600 rounded-full animate-spin" />
+                              : <Undo2 size={13} />}
+                            Unmark
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -269,21 +289,39 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <span className="font-bold text-base text-red-600">{formatKES(tx.total)}</span>
-                    <button
-                      disabled={clearingDebt === tx.id}
-                      onClick={async () => {
-                        setClearingDebt(tx.id)
-                        const ok = await clearDebt(tx.id)
-                        if (ok) refreshTxs()
-                        setClearingDebt(null)
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
-                    >
-                      {clearingDebt === tx.id
-                        ? <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        : <CheckCircle2 size={12} />}
-                      Paid
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        disabled={clearingDebt === tx.id || unmarkingDebt === tx.id}
+                        onClick={async () => {
+                          setClearingDebt(tx.id)
+                          const ok = await clearDebt(tx.id)
+                          if (ok) refreshTxs()
+                          setClearingDebt(null)
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
+                      >
+                        {clearingDebt === tx.id
+                          ? <span className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          : <CheckCircle2 size={12} />}
+                        Paid
+                      </button>
+                      <button
+                        disabled={clearingDebt === tx.id || unmarkingDebt === tx.id}
+                        onClick={async () => {
+                          if (!confirm('Remove this debt? (Items returned — will be deleted)')) return
+                          setUnmarkingDebt(tx.id)
+                          const ok = await unmarkDebt(tx.id)
+                          if (ok) refreshTxs()
+                          setUnmarkingDebt(null)
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold disabled:opacity-50"
+                      >
+                        {unmarkingDebt === tx.id
+                          ? <span className="h-3 w-3 border-2 border-slate-400/30 border-t-slate-600 rounded-full animate-spin" />
+                          : <Undo2 size={12} />}
+                        Undo
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -320,13 +358,40 @@ export default function DashboardPage() {
                   <td className="px-4 py-3 text-muted-foreground">{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      tx.isDebt                   ? 'bg-red-100 text-red-700' :
+                      tx.paymentMode === 'Debt'   ? 'bg-amber-100 text-amber-700' :
                       tx.paymentMode === 'Cash'   ? 'bg-emerald-100 text-emerald-700' :
                       tx.paymentMode === 'M-Pesa' ? 'bg-blue-100 text-blue-700' :
                       tx.paymentMode === 'I&M'    ? 'bg-orange-100 text-orange-700' :
-                                                     'bg-purple-100 text-purple-700'
-                    }`}>{tx.paymentMode}</span>
+                                                    'bg-purple-100 text-purple-700'
+                    }`}>
+                      {tx.isDebt ? 'Debt (Pending)' : tx.paymentMode === 'Debt' ? 'Debt (Paid)' : tx.paymentMode}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-primary">{formatKES(tx.total)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="font-bold text-primary">{formatKES(tx.total)}</span>
+                      {tx.paymentMode === 'Debt' && tx.debtPaidAt && (
+                        <button
+                          disabled={unmarkingDebt === tx.id}
+                          onClick={async () => {
+                            if (!confirm('Unmark as paid? Stock will be restored.')) return
+                            setUnmarkingDebt(tx.id)
+                            const ok = await unmarkDebt(tx.id)
+                            if (ok) refreshTxs()
+                            setUnmarkingDebt(null)
+                          }}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold disabled:opacity-50"
+                          title="Items returned — unmark as paid"
+                        >
+                          {unmarkingDebt === tx.id
+                            ? <span className="h-3 w-3 border-2 border-slate-400/30 border-t-slate-600 rounded-full animate-spin" />
+                            : <Undo2 size={11} />}
+                          Undo
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -349,12 +414,35 @@ export default function DashboardPage() {
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className="font-bold text-sm text-primary">{formatKES(tx.total)}</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  tx.paymentMode === 'Cash'   ? 'bg-emerald-100 text-emerald-700' :
-                  tx.paymentMode === 'M-Pesa' ? 'bg-blue-100 text-blue-700' :
-                  tx.paymentMode === 'I&M'    ? 'bg-orange-100 text-orange-700' :
-                                               'bg-purple-100 text-purple-700'
-                }`}>{tx.paymentMode}</span>
+                <div className="flex items-center gap-1">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    tx.isDebt                   ? 'bg-red-100 text-red-700' :
+                    tx.paymentMode === 'Debt'   ? 'bg-amber-100 text-amber-700' :
+                    tx.paymentMode === 'Cash'   ? 'bg-emerald-100 text-emerald-700' :
+                    tx.paymentMode === 'M-Pesa' ? 'bg-blue-100 text-blue-700' :
+                    tx.paymentMode === 'I&M'    ? 'bg-orange-100 text-orange-700' :
+                                                 'bg-purple-100 text-purple-700'
+                  }`}>
+                    {tx.isDebt ? 'Debt (Pending)' : tx.paymentMode === 'Debt' ? 'Debt (Paid)' : tx.paymentMode}
+                  </span>
+                  {tx.paymentMode === 'Debt' && tx.debtPaidAt && (
+                    <button
+                      disabled={unmarkingDebt === tx.id}
+                      onClick={async () => {
+                        if (!confirm('Unmark as paid? Stock will be restored.')) return
+                        setUnmarkingDebt(tx.id)
+                        const ok = await unmarkDebt(tx.id)
+                        if (ok) refreshTxs()
+                        setUnmarkingDebt(null)
+                      }}
+                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold disabled:opacity-50"
+                    >
+                      {unmarkingDebt === tx.id
+                        ? <span className="h-2.5 w-2.5 border-2 border-slate-400/30 border-t-slate-600 rounded-full animate-spin" />
+                        : <Undo2 size={10} />}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

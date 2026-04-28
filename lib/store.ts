@@ -292,6 +292,41 @@ export async function clearDebt(txId: string): Promise<boolean> {
     return true
 }
 
+export async function unmarkDebt(txId: string): Promise<boolean> {
+    // Reverse a cleared debt — items were returned, so we put stock back and clear the paid timestamp
+    const { data: tx, error: fetchErr } = await supabase
+        .from('pos_transactions')
+        .select('*, items:pos_transaction_items(*)')
+        .eq('id', txId)
+        .single()
+    if (fetchErr || !tx) { console.error('unmarkDebt: tx not found', fetchErr); return false }
+
+    // Only reverse if the debt was actually cleared (has a debt_paid_at timestamp)
+    if (!tx.debt_paid_at) {
+        // Still an active debt — just delete the transaction entirely (items returned before payment)
+        const { error: delErr } = await supabase.from('pos_transactions').delete().eq('id', txId)
+        if (delErr) { console.error('unmarkDebt: delete failed', delErr); return false }
+        return true
+    }
+
+    // Was already marked as paid — clear the paid timestamp and restore stock
+    const { error: updateErr } = await supabase
+        .from('pos_transactions')
+        .update({ debt_paid_at: null })
+        .eq('id', txId)
+    if (updateErr) { console.error('unmarkDebt: update failed', updateErr); return false }
+
+    // Restore stock that was deducted when debt was cleared
+    for (const item of tx.items) {
+        const { data: pRow } = await supabase.from('pos_products').select('stock').eq('id', item.product_id).single();
+        if (pRow) {
+            const restoredStock = pRow.stock + item.quantity;
+            await supabase.from('pos_products').update({ stock: restoredStock }).eq('id', item.product_id);
+        }
+    }
+    return true
+}
+
 export async function deleteTransaction(id: string) {
     // Due to ON DELETE CASCADE on transaction_items, deleting the TX cleans the items
     const { error } = await supabase.from('pos_transactions').delete().eq('id', id);
@@ -358,9 +393,12 @@ export function calculateTopProducts(txs: SaleTransaction[], limit = 6): { name:
 }
 
 export function calculatePaymentBreakdown(txs: SaleTransaction[]): { name: PaymentMode; value: number }[] {
-  // Only include paid transactions in breakdown
+  // Only include paid, non-Debt transactions in breakdown
+  // Exclude ALL Debt-mode transactions (both pending and cleared) — debt revenue is tracked separately
   const map: Record<string, number> = { Cash: 0, 'M-Pesa': 0, DTB: 0, 'I&M': 0 }
-  txs.filter(t => !t.isDebt).forEach((t) => { map[t.paymentMode] = (map[t.paymentMode] ?? 0) + Number(t.total) })
+  txs
+    .filter(t => !t.isDebt && t.paymentMode !== 'Debt')
+    .forEach((t) => { map[t.paymentMode] = (map[t.paymentMode] ?? 0) + Number(t.total) })
   return (Object.entries(map) as [PaymentMode, number][]).map(([name, value]) => ({ name, value }))
 }
 
