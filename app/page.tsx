@@ -52,6 +52,21 @@ function DebtModal({ tx, onClose }: { tx: SaleTransaction; onClose: () => void }
 }
 
 
+/* ── Toast ────────────────────────────────────────────────────────────── */
+function Toast({ message, type = 'success', onHide }: { message: string; type?: 'success'|'error'; onHide: () => void }) {
+  useEffect(() => { const t = setTimeout(onHide, 3000); return () => clearTimeout(t) }, [onHide])
+  return (
+    <div
+      className={`fixed left-1/2 z-[60] -translate-x-1/2 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl text-white text-sm font-semibold whitespace-nowrap pointer-events-none ${
+        type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+      }`}
+      style={{ bottom: 'calc(82px + env(safe-area-inset-bottom))', animation: 'toastSlideUp 0.25s ease-out' }}
+    >
+      {message}
+    </div>
+  )
+}
+
 function ReceiptModal({ tx, onClose }: { tx: SaleTransaction; onClose: () => void }) {
   const handlePrint = () => {
     const w = window.open('', '', 'width=400,height=600')
@@ -339,6 +354,7 @@ export default function POSPage() {
   const [cartOpen, setCartOpen]     = useState(false)  // mobile cart sheet
   const [saleError, setSaleError]   = useState<string | null>(null)
   const [debtReceipt, setDebtReceipt] = useState<SaleTransaction | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success'|'error' } | null>(null)
 
   useEffect(() => {
     setSession(getSession())
@@ -402,6 +418,11 @@ export default function POSPage() {
   /* Process sale */
   const processSale = async () => {
     if (cart.length === 0 || !session) return
+    if (payMode === 'Debt' && !customer.trim()) {
+      setSaleError('A customer name is required for debt — who owes this?')
+      setTimeout(() => setSaleError(null), 5000)
+      return
+    }
     setProcessing(true)
 
     const tx: SaleTransaction = {
@@ -424,6 +445,7 @@ export default function POSPage() {
         setDebtReceipt(tx)
       } else {
         setReceipt(tx)
+        setToast({ message: `Sale recorded — ${formatKES(tx.total)}`, type: 'success' })
       }
     } catch (e: any) {
       console.error(e)
@@ -453,6 +475,7 @@ export default function POSPage() {
     <>
       {receipt && <ReceiptModal tx={receipt} onClose={() => setReceipt(null)} />}
       {debtReceipt && <DebtModal tx={debtReceipt} onClose={() => setDebtReceipt(null)} />}
+      {toast && <Toast message={toast.message} type={toast.type} onHide={() => setToast(null)} />}
 
       {/* ── Mobile cart sheet overlay ── */}
       {cartOpen && (
@@ -498,21 +521,24 @@ export default function POSPage() {
               ))}
             </div>
 
-            {/* Category tabs */}
-            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-3 px-3 lg:mx-0 lg:px-0">
-              {['All', ...(department === 'Refabit Technologies' ? CATEGORIES_TECH : CATEGORIES_SIGN)].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  className={`px-3 py-1.5 flex-shrink-0 rounded-lg text-xs font-semibold whitespace-nowrap border transition-all ${
-                    category === cat
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-card text-muted-foreground border-border hover:border-slate-300'
-                  }`}
-                >
-                  {cat !== 'All' ? `${getCategoryConf(cat).emoji} ` : ''}{cat}
-                </button>
-              ))}
+            {/* Category tabs with right-fade scroll indicator */}
+            <div className="relative">
+              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-3 px-3 lg:mx-0 lg:px-0">
+                {['All', ...(department === 'Refabit Technologies' ? CATEGORIES_TECH : CATEGORIES_SIGN)].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategory(cat)}
+                    className={`px-3 py-1.5 flex-shrink-0 rounded-lg text-xs font-semibold whitespace-nowrap border transition-all ${
+                      category === cat
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-card text-muted-foreground border-border hover:border-slate-300'
+                    }`}
+                  >
+                    {cat !== 'All' ? `${getCategoryConf(cat).emoji} ` : ''}{cat}
+                  </button>
+                ))}
+              </div>
+              <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-background to-transparent pointer-events-none lg:hidden" />
             </div>
           </div>
 
@@ -536,7 +562,7 @@ export default function POSPage() {
                       disabled={outOfStock}
                       className={`relative flex flex-col rounded-xl border p-3 text-left transition-all group ${
                         outOfStock
-                          ? 'opacity-50 cursor-not-allowed border-border bg-card'
+                          ? 'cursor-not-allowed border-red-200 bg-red-50/50'
                           : inCart
                           ? 'border-red-400 bg-red-50 shadow-sm'
                           : 'border-border bg-card hover:border-slate-300 hover:shadow-sm'
@@ -553,7 +579,7 @@ export default function POSPage() {
                           {product.category}
                         </span>
                         <span className={`text-[10px] font-semibold ${product.stock <= product.lowStockThreshold ? 'text-amber-600' : 'text-slate-400'}`}>
-                          {outOfStock ? 'Out' : `${product.stock} left`}
+                          {outOfStock ? <span className="text-red-600 font-bold">Out of Stock</span> : `${product.stock} left`}
                         </span>
                       </div>
                       {inCart && (
@@ -578,14 +604,14 @@ export default function POSPage() {
         {/* Floating cart FAB */}
         <button
           onClick={() => setCartOpen(true)}
-          className={`lg:hidden fixed right-4 z-30 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-lg font-semibold text-sm transition-all ${
+          className={`lg:hidden fixed right-4 z-30 flex items-center gap-2 px-4 py-3.5 rounded-2xl shadow-xl font-semibold text-sm transition-all active:scale-95 ${
             cart.length > 0
               ? 'bg-red-600 text-white'
               : 'bg-slate-800 text-white/70'
           }`}
-          style={{ bottom: 'calc(68px + env(safe-area-inset-bottom))' }}
+          style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
         >
-          <ShoppingCart size={18} />
+          <ShoppingCart size={19} />
           <span>{cart.length > 0 ? `${cart.length} item${cart.length !== 1 ? 's' : ''} · ${formatKES(total)}` : 'Cart'}</span>
           {cart.length > 0 && <ChevronUp size={16} />}
         </button>

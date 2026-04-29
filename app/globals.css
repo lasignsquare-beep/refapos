@@ -118,3 +118,8 @@ input, textarea, select { transition: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
+
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translate(-50%, 14px) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, 0)    scale(1); }
+}

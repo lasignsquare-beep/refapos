@@ -63,30 +63,30 @@ function ProductSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex">
-      <div className="flex-1 bg-black/40" onClick={onClose} />
-      <div className="w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-40 flex flex-col md:flex-row">
+      <div className="hidden md:block flex-1 bg-black/40" onClick={onClose} />
+      <div className="w-full md:max-w-md bg-white h-full overflow-y-auto shadow-2xl flex flex-col" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {/* Header */}
-        <div className="px-6 py-5 border-b flex items-center justify-between">
+        <div className="px-5 py-4 border-b flex items-center justify-between shrink-0">
           <div>
             <h2 className="font-bold text-lg">{isEdit ? 'Edit Product' : 'Add New Product'}</h2>
             <p className="text-muted-foreground text-sm">{isEdit ? 'Update product details' : 'Add a product to the database'}</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 text-muted-foreground"><X size={18} /></button>
+          <button onClick={onClose} className="p-2.5 rounded-lg hover:bg-slate-100 text-muted-foreground"><X size={18} /></button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 px-5 py-4 space-y-4 overflow-y-auto">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Product Name *</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               onBlur={handleNameBlur} placeholder="e.g. HP LaserJet Printer"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400 mb-3" />
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400 mb-3" />
             
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Serial Number / Description</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="e.g. SN: 123456789 or Extra product details (optional)" rows={2}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400 resize-none" />
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400 resize-none" />
           </div>
 
           {/* Department */}
@@ -99,7 +99,7 @@ function ProductSheet({
                   const initSub = (CATEGORY_TREE[dept] as any)[initCat]?.[0] || 'Other'
                   setForm({ ...form, department: dept, category: initCat, subcategory: initSub })
                 }}
-                  className={`py-2 rounded-xl border text-sm font-semibold transition-all ${
+                  className={`py-2.5 rounded-xl border text-sm font-semibold transition-all ${
                     form.department === dept ? 'bg-red-600 text-white border-red-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}>
                   {dept}
@@ -120,7 +120,7 @@ function ProductSheet({
                     const initSub = (CATEGORY_TREE[form.department as keyof typeof CATEGORY_TREE] as any)[cat]?.[0] || 'Other'
                     setForm({ ...form, category: cat, subcategory: initSub })
                   }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
                       active ? `${conf.bg} ${conf.text} ${conf.border} border-2` : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
                     }`}>
                     <span>{conf.emoji}</span> {cat}
@@ -134,7 +134,7 @@ function ProductSheet({
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Subcategory</label>
             <select value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400">
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400">
               {((CATEGORY_TREE[form.department as keyof typeof CATEGORY_TREE] as any)[form.category] || ['Other']).map((sub: string) => (
                 <option key={sub} value={sub}>{sub}</option>
               ))}
@@ -146,22 +146,22 @@ function ProductSheet({
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">SKU</label>
             <input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })}
               placeholder="Auto-generated from name"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
           </div>
 
           {/* Price + Stock */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Price (KES) *</label>
-              <input type="number" min="0" step="0.01" value={form.price}
+              <input type="number" inputMode="decimal" min="0" step="0.01" value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Stock / Quantity *</label>
-              <input type="number" min="0" step="any" value={form.stock}
+              <input type="number" inputMode="decimal" min="0" step="any" value={form.stock}
                 onChange={(e) => setForm({ ...form, stock: e.target.value })} placeholder="0"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
             </div>
           </div>
 
@@ -179,21 +179,21 @@ function ProductSheet({
             {/* Low stock threshold */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Low Stock Alert</label>
-              <input type="number" min="0" step="any" value={form.lowStockThreshold}
+              <input type="number" inputMode="decimal" min="0" step="any" value={form.lowStockThreshold}
                 onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })} placeholder="5"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
             </div>
           </div>
 
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-2 pb-4">
             <button type="button" onClick={onClose}
-              className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+              className="flex-1 py-3.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 active:scale-[0.98]">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold">
+              className="flex-1 py-3.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold active:scale-[0.98]">
               {saving ? 'Saving…' : isEdit ? 'Update Product' : 'Add Product'}
             </button>
           </div>

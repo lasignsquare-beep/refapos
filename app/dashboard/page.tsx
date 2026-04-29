@@ -1,14 +1,35 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { calculateStats, calculateDailyRevenue, calculateTopProducts, calculatePaymentBreakdown, getTransactions, clearDebt, unmarkDebt } from '@/lib/store'
+import { calculateStats, calculateDailyRevenue, calculateTopProducts, calculatePaymentBreakdown, getTransactions, clearDebt, unmarkDebt, getProducts } from '@/lib/store'
 import { formatKES, DEPARTMENTS } from '@/lib/pos-utils'
-import { TrendingUp, ShoppingBag, Calendar, DollarSign, Receipt, AlertCircle, CheckCircle2, Undo2 } from 'lucide-react'
+import { TrendingUp, ShoppingBag, Calendar, DollarSign, Receipt, AlertCircle, CheckCircle2, Undo2, RefreshCw, Package, AlertTriangle } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import type { SaleTransaction } from '@/lib/types'
+import type { SaleTransaction, Product } from '@/lib/types'
+
+function timeAgo(iso: string): string {
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3600000)
+  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (d > 0) return `${d}d ago`
+  if (h > 0) return `${h}h ago`
+  if (m > 0) return `${m}m ago`
+  return 'just now'
+}
+
+function Toast({ message, type = 'success', onHide }: { message: string; type?: 'success'|'error'; onHide: () => void }) {
+  useEffect(() => { const t = setTimeout(onHide, 3000); return () => clearTimeout(t) }, [onHide])
+  return (
+    <div className={`fixed left-1/2 z-[60] -translate-x-1/2 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl text-white text-sm font-semibold whitespace-nowrap pointer-events-none ${
+      type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}
+      style={{ bottom: 'calc(82px + env(safe-area-inset-bottom))', animation: 'toastSlideUp 0.25s ease-out' }}>
+      {message}
+    </div>
+  )
+}
 
 const PIE_COLORS = ['#16a34a', '#2563eb', '#7c3aed', '#ea7600']
 
@@ -46,13 +67,19 @@ export default function DashboardPage() {
   const [payBreak, setPayBreak] = useState<{ name: string; value: number }[]>([])
   const [recent, setRecent]     = useState<SaleTransaction[]>([])
   const [allTxs, setAllTxs]     = useState<SaleTransaction[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [department, setDepartment] = useState<string>('All')
   const [clearingDebt, setClearingDebt] = useState<string | null>(null)
   const [unmarkingDebt, setUnmarkingDebt] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success'|'error' } | null>(null)
+  const [lastRefresh, setLastRefresh] = useState(new Date())
 
-  const refreshTxs = () => getTransactions().then(setAllTxs)
+  const refreshAll = () => Promise.all([getTransactions(), getProducts()]).then(([txs, prods]) => {
+    setAllTxs(txs); setProducts(prods); setLastRefresh(new Date())
+  })
 
-  useEffect(() => { refreshTxs() }, [])
+  useEffect(() => { refreshAll() }, [])
+  useEffect(() => { const id = setInterval(refreshAll, 60000); return () => clearInterval(id) }, [])
 
   useEffect(() => {
     const filteredTxs = department === 'All' ? allTxs : allTxs.filter(t => t.department === department)
@@ -75,9 +102,15 @@ export default function DashboardPage() {
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">Sales analytics and performance overview</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Dashboard</h1>
+            <p className="text-muted-foreground text-sm">Sales analytics and performance overview</p>
+          </div>
+          <button onClick={() => refreshAll()} title="Refresh data"
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-muted-foreground hover:text-foreground ml-1 shrink-0">
+            <RefreshCw size={16} />
+          </button>
         </div>
         <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto no-scrollbar">
           {['All', ...DEPARTMENTS].map(dept => (
@@ -118,6 +151,23 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Low Stock Alert Card */}
+      {(() => {
+        const lowStock = products.filter(p => p.stock <= p.lowStockThreshold)
+        if (lowStock.length === 0) return null
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
+              <AlertTriangle size={18} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-amber-800 text-sm">{lowStock.length} product{lowStock.length > 1 ? 's' : ''} running low</p>
+              <p className="text-amber-600 text-xs mt-0.5 truncate">{lowStock.slice(0,5).map(p => `${p.name} (${p.stock})`).join(' · ')}{lowStock.length > 5 ? ` +${lowStock.length-5} more` : ''}</p>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Revenue Chart */}
       <div className="bg-card rounded-2xl border border-border p-5">
@@ -226,7 +276,10 @@ export default function DashboardPage() {
                     <tr key={tx.id} className="border-b border-red-100/60 hover:bg-red-50/40">
                       <td className="px-4 py-3 font-mono text-xs text-red-400">{tx.receiptNo}</td>
                       <td className="px-4 py-3 text-xs text-slate-600 font-medium">{tx.department === 'Refabit Technologies' ? 'Tech' : 'Signsquare'}</td>
-                      <td className="px-4 py-3 text-xs">{new Date(tx.timestamp).toLocaleString('en-KE', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {new Date(tx.timestamp).toLocaleString('en-KE', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                        <span className="block text-[10px] text-red-400 font-semibold">{timeAgo(tx.timestamp)}</span>
+                      </td>
                       <td className="px-4 py-3 font-semibold text-red-700">{tx.customer || <span className="text-slate-400 italic">Unknown</span>}</td>
                       <td className="px-4 py-3">{tx.cashierName}</td>
                       <td className="px-4 py-3 text-muted-foreground">{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}</td>
@@ -238,7 +291,7 @@ export default function DashboardPage() {
                             onClick={async () => {
                               setClearingDebt(tx.id)
                               const ok = await clearDebt(tx.id)
-                              if (ok) refreshTxs()
+                              if (ok) { refreshAll(); setToast({ message: 'Debt cleared ✓', type: 'success' }) }
                               setClearingDebt(null)
                             }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
@@ -254,7 +307,7 @@ export default function DashboardPage() {
                               if (!confirm('Remove this debt? (Items returned — transaction will be deleted)')) return
                               setUnmarkingDebt(tx.id)
                               const ok = await unmarkDebt(tx.id)
-                              if (ok) refreshTxs()
+                              if (ok) { refreshAll(); setToast({ message: 'Debt removed', type: 'success' }) }
                               setUnmarkingDebt(null)
                             }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold disabled:opacity-50"
@@ -285,6 +338,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-muted-foreground">
                       {new Date(tx.timestamp).toLocaleString('en-KE', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
                       {' · '}{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}
+                      {' · '}<span className="text-red-400 font-semibold">{timeAgo(tx.timestamp)}</span>
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -295,7 +349,7 @@ export default function DashboardPage() {
                         onClick={async () => {
                           setClearingDebt(tx.id)
                           const ok = await clearDebt(tx.id)
-                          if (ok) refreshTxs()
+                          if (ok) { refreshAll(); setToast({ message: 'Debt cleared ✓', type: 'success' }) }
                           setClearingDebt(null)
                         }}
                         className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
@@ -311,7 +365,7 @@ export default function DashboardPage() {
                           if (!confirm('Remove this debt? (Items returned — will be deleted)')) return
                           setUnmarkingDebt(tx.id)
                           const ok = await unmarkDebt(tx.id)
-                          if (ok) refreshTxs()
+                          if (ok) { refreshAll(); setToast({ message: 'Debt removed', type: 'success' }) }
                           setUnmarkingDebt(null)
                         }}
                         className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold disabled:opacity-50"
@@ -341,19 +395,20 @@ export default function DashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-slate-50/60">
-                {['Receipt', 'Shop', 'Date & Time', 'Cashier', 'Items', 'Payment', 'Total'].map((h) => (
+                {['Receipt', 'Shop', 'Date & Time', 'Customer', 'Cashier', 'Items', 'Payment', 'Total'].map((h) => (
                   <th key={h} className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground ${h === 'Total' ? 'text-right' : 'text-left'}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {recent.length === 0 ? (
-                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground text-sm">No transactions yet. Process a sale from the POS terminal.</td></tr>
+                <tr><td colSpan={8} className="py-12 text-center text-muted-foreground text-sm">No transactions yet. Process a sale from the POS terminal.</td></tr>
               ) : recent.map((tx) => (
                 <tr key={tx.id} className="border-b border-border/60 hover:bg-slate-50/60">
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{tx.receiptNo}</td>
                   <td className="px-4 py-3 text-xs text-slate-600 font-medium">{tx.department === 'Refabit Technologies' ? 'Tech' : 'Signsquare'}</td>
                   <td className="px-4 py-3 text-xs">{new Date(tx.timestamp).toLocaleString('en-KE', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-sm">{tx.customer || '—'}</td>
                   <td className="px-4 py-3">{tx.cashierName}</td>
                   <td className="px-4 py-3 text-muted-foreground">{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}</td>
                   <td className="px-4 py-3">
@@ -378,7 +433,7 @@ export default function DashboardPage() {
                             if (!confirm('Unmark as paid? Stock will be restored.')) return
                             setUnmarkingDebt(tx.id)
                             const ok = await unmarkDebt(tx.id)
-                            if (ok) refreshTxs()
+                            if (ok) { refreshAll(); setToast({ message: 'Debt unmarked', type: 'success' }) }
                             setUnmarkingDebt(null)
                           }}
                           className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold disabled:opacity-50"
@@ -406,7 +461,7 @@ export default function DashboardPage() {
             <div key={tx.id} className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-mono text-xs text-muted-foreground">{tx.receiptNo}</p>
-                <p className="text-sm font-semibold truncate">{tx.cashierName}</p>
+                <p className="text-sm font-semibold truncate">{tx.customer || tx.cashierName}</p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(tx.timestamp).toLocaleString('en-KE', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
                   {' · '}{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}
@@ -432,7 +487,7 @@ export default function DashboardPage() {
                         if (!confirm('Unmark as paid? Stock will be restored.')) return
                         setUnmarkingDebt(tx.id)
                         const ok = await unmarkDebt(tx.id)
-                        if (ok) refreshTxs()
+                        if (ok) { refreshAll(); setToast({ message: 'Debt unmarked', type: 'success' }) }
                         setUnmarkingDebt(null)
                       }}
                       className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold disabled:opacity-50"
@@ -448,6 +503,7 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+      {toast && <Toast message={toast.message} type={toast.type} onHide={() => setToast(null)} />}
     </div>
   )
 }
